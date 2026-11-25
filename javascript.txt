@@ -1,0 +1,55 @@
+javascript
+const TEAMS = [
+  {id:'dg', name:'Đóng gói', groups:[
+    {n:'Đóng gói', t:'CT', w:'Lê Thành Long,Võ Minh Phát,Võ Thị Anh Thư,Hà Thị Phước Hiền,Hà Thị Phước Lành,Nguyễn Trọng Phúc,Phan Thị Thuỳ Dương,Văn Trung Nhân,Lê Thị Bảo Trân,Trần Thị Bích,Trần Kim Thoa,Ngô Thảo Lam,Bùi Ngọc Trúc Huỳnh,Nguyễn Ngọc Hạnh,Trần Thị Mỹ Hạnh'},
+    {n:'Đóng gói TV', t:'TV', w:''}
+  ]},
+  {id:'ct', name:'Cắt tỉa', groups:[
+    {n:'Cắt tỉa', t:'CT', w:'Trần Thị Nhí,Nguyễn Thị Hồng Lam,Lê Thị Phương,Mai Thị Thắm,Lê Thị Thanh Dung,Lê Thị Kim Chi,Nguyễn Thị Thuỳ Dung,Trần Thị Trúc Duyên,Nguyễn Thị Mộng Quyền,Hồ Thị Ngọc Ngân,Lê Ngọc Anh,Hồ Thị Bích Tuyền,Huỳnh Ngọc Mẫn,Huỳnh Thị Thu Hiền,Nguyễn Thị Ngọc Yến,Lò Thị Thuỳ Duyên,Lê Thị Mỹ Khuyên,Dương Ngọc Tuyết Mai,Nguyễn Thị Cẩm Thương,Nguyễn Văn Tính,Huỳnh Thị Kim Liên,Trần Kim Xoa,Huỳnh Thị Trúc Ngân,Trần Thị Cẩm Tú,Hồ Thị Phi'},
+    {n:'Cắt tỉa TV', t:'TV', w:''}
+  ]},
+  {id:'npl', name:'Kho NPL', groups:[
+    {n:'Kho NPL', t:'CT', w:'Nguyễn Thanh Bình,Nguyễn Kim Hải Lý,Trần Thị Diễm,Hồ Thị Chi,Lê Quang Vinh,Trương Văn Sang'},
+    {n:'Kho NPL TV', t:'TV', w:''}
+  ]},
+  {id:'han', name:'Hàn - Sắt', groups:[
+    {n:'Hàn - Sắt', t:'CT', w:'Lê Thành Lộc,Nguyễn Trường Kha,Nguyễn Phúc Hậu,Nguyễn Thanh Trúc Phương,Bạch Thị Ngọc Điệp,Phạm Minh Duy,Trần Thị Cẩm Tiên,Nguyễn Hữu Anh,Nguyễn Văn Lập'},
+    {n:'Hàn TV', t:'TV', w:''}
+  ]},
+  {id:'son', name:'Sơn', groups:[
+    {n:'Sơn', t:'CT', w:'Võ Hoàng Tha,Lê Văn Láng,Nguyễn Thị Bạch Huệ,Trường Văn Beo,Nguyễn Hữu Phúc,Nguyễn Tuấn Kiệt,Lê Thanh Phú,Nguyễn Hoài Nam,Lê Văn Đức,Nguyễn Thị Thu Hương,Võ Huỳnh Ninh,Trần Mạnh Quỳnh'},
+    {n:'Sơn TV', t:'TV', w:''}
+  ]},
+  {id:'lac', name:'Lacquer + Lắp ráp', groups:[
+    {n:'Lacquer', t:'CT', w:'Trần Thị Bảo Trâm,Ngô Thị Xuân Trang,Nguyễn Thị Bích Trâm,Nguyễn Lê Nhật Trường'},
+    {n:'Lắp ráp', t:'CT', w:'Cao Nguyễn Phúc Hậu,Lê Nguyễn Thành Đạt,Âu Anh Khoa,Phạm Văn Lâm,Huỳnh Thị Khánh An,Võ Văn Mum'},
+    {n:'Lắp ráp TV', t:'TV', w:''}
+  ]},
+  {id:'kks', name:'Kho khung sắt', groups:[
+    {n:'Kho khung sắt', t:'CT', w:'Nguyễn Thị Hồng Vân,Nguyễn Thị Hồng Nhi,Nguyễn Minh Quân,Võ Thanh Huy,Trần Thị Ánh Trâm'},
+    {n:'Kho khung sắt TV', t:'TV', w:''}
+  ]},
+  {id:'bt', name:'Bảo trì', groups:[
+    {n:'Bảo trì', t:'CT', w:'Phan Thành Luân'},
+    {n:'Bảo trì TV', t:'TV', w:''}
+  ]},
+  {id:'mau', name:'Mẫu', groups:[
+    {n:'Mẫu', t:'CT', w:'Trần Thị Thu Thảo,Trần Thị Hoặc'},
+    {n:'Mẫu TV', t:'TV', w:''}
+  ]},
+  {id:'bv', name:'Bảo vệ', groups:[
+    {n:'Bảo vệ', t:'CT', w:'Nguyễn Văn Em,Đỗ Văn Thương,Hồ Thanh Nhân,Lê Thanh Bình'}
+  ]},
+  {id:'tv', name:'Tạp vụ', groups:[
+    {n:'Tạp vụ', t:'CT', w:'Trương Thị Diệu Hạnh'},
+    {n:'Tạp vụ TV', t:'TV', w:''}
+  ]},
+  {id:'kh', name:'Kiểm hàng', groups:[
+    {n:'Kiểm hàng', t:'CT', w:'Huỳnh Tiến Đạt,Âu Ngọc Trâm,Trương Thị Ngọc Hân,Nguyễn Võ Thanh Như,Bùi Huỳnh Thơ,Nguyễn Thị Thảo Nguyên,Nguyễn Bùi Như Ý,Châu Thị Huyền Trang,Nguyễn Thị Minh Hằng'},
+    {n:'Kiểm hàng TV', t:'TV', w:''}
+  ]},
+  {id:'qc', name:'QC', groups:[
+    {n:'QC', t:'CT', w:'Lê Thị Tuyết Mai'},
+    {n:'QC TV', t:'TV', w:''}
+  ]}
+];

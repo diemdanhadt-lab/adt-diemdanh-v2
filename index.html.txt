@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Điểm danh tổ sản xuất – ADT</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+:root{--bg:#f4f6f5;--card:#fff;--tx:#1d2521;--mut:#5f6b65;--pri:#0f6b52;--line:#d5ddd9;--red:#b42318;--ok:#067647;--head:#e3efe9;--g:#c6efd0;--y:#fde9a8;--r:#f9c5c1}
+@media (prefers-color-scheme: dark){:root{--bg:#121714;--card:#1b221e;--tx:#e8eee9;--mut:#9aa6a0;--pri:#3fbf93;--line:#2e3a34;--red:#f97066;--ok:#4ade80;--head:#22302a;--g:#1f4d33;--y:#5a4a12;--r:#5c2420}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx);font-size:16px}
+header{padding:12px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+h1{font-size:19px;margin:0;flex:1 1 100%}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--tx);padding:12px 16px;border-radius:12px;font-size:16px;cursor:pointer;min-height:48px}
+.btn.pri{background:var(--pri);color:#fff;border-color:var(--pri);font-weight:600}
+.btn.sm{min-height:40px;padding:8px 12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 14px 10px}
+input[type=password],input[type=date],select{padding:12px;border-radius:10px;border:1px solid var(--line);background:var(--card);color:var(--tx);font-size:16px;min-height:46px}
+.warn{background:#fee4e2;color:#7a271a;padding:10px 14px;border-radius:10px;margin:0 14px 10px;font-size:14px}
+.stat{margin:0 14px 10px;padding:10px 14px;background:var(--card);border:1px solid var(--line);border-radius:12px;font-size:15px}
+.stat b{margin-right:6px}
+.c-ok{color:var(--ok)}.c-p{color:#b54708}.c-kp{color:var(--red)}
+.wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 14px 24px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+table{border-collapse:separate;border-spacing:0;min-width:100%}
+th,td{border-bottom:1px solid var(--line);padding:8px;text-align:center;font-size:14px;white-space:nowrap}
+th{background:var(--head);position:sticky;top:0;z-index:2}
+td.stt,th.stt{position:sticky;left:0;background:var(--card);z-index:1;width:48px}
+td.nm,th.nm{position:sticky;left:48px;background:var(--card);z-index:1;text-align:left;min-width:180px;box-shadow:2px 0 4px rgba(0,0,0,.08)}
+th.nm{background:var(--head)}
+.grp td{background:var(--head);text-align:left;font-weight:600;position:sticky;left:0}
+.tot td{font-weight:700}
+.cell{width:40px;height:40px;border:2px solid var(--mut);border-radius:8px;margin:auto;cursor:pointer;display:flex;align-items:center;justify-content:center;font-weight:700;user-select:none}
+.cell.on{background:var(--pri);border-color:var(--pri);color:#fff}
+.cell.dis{opacity:.3;cursor:not-allowed}
+.txt{width:120px;min-height:40px;padding:6px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--tx);font-size:14px}
+.txt.wide{width:200px}
+.hint{font-size:14px;color:var(--mut);padding:0 14px 10px;line-height:1.5}
+.note{font-size:12px;color:var(--mut);font-weight:normal}
+.hg{background:var(--g)}.hy{background:var(--y)}.hr{background:var(--r)}
+#login{max-width:360px;margin:60px auto;padding:20px;background:var(--card);border:1px solid var(--line);border-radius:16px}
+#login select,#login input{width:100%;margin-bottom:12px}
+.hidden{display:none!important}
+.adm{display:none!important}
+.isAdmin .adm{display:inline-block!important}
+.isAdmin .row.adm{display:flex!important}
+</style>
+</head>
+<body>
+
+<!-- ===== ĐĂNG NHẬP ===== -->
+<div id="login" class="hidden">
+  <h1>🔐 Đăng nhập</h1>
+  <p class="hint">Chọn tổ hoặc quản trị rồi nhập mã PIN. Nếu chưa có mã, nhập mã mới để đặt.</p>
+  <select id="loginTeam"></select>
+  <input type="password" id="loginPin" inputmode="numeric" placeholder="Mã PIN">
+  <button class="btn pri" style="width:100%" onclick="doLogin()">Đăng nhập</button>
+  <p id="loginMsg" class="hint" style="color:var(--red)"></p>
+</div>
+
+<!-- ===== MÀN HÌNH CHÍNH ===== -->
+<div id="app" class="hidden">
+  <header>
+    <h1>📋 ĐIỂM DANH TỔ SẢN XUẤT – ADT</h1>
+    <span id="who" style="flex:1"></span>
+    <span id="sync" style="font-size:14px"></span>
+    <button class="btn sm" onclick="logout()">⎋ Đăng xuất</button>
+  </header>
+  <div id="warn" class="warn hidden"></div>
+
+  <div class="row" id="tabs">
+    <button class="btn sm" data-t="day" onclick="go('day')">📝 Điểm danh</button>
+    <button class="btn sm adm" data-t="sum" onclick="go('sum')">📋 Tổng hợp</button>
+    <button class="btn sm adm" data-t="chart" onclick="go('chart')">📊 Biểu đồ & xếp hạng</button>
+    <button class="btn sm adm" data-t="adm" onclick="go('adm')">⚙️ Quản trị</button>
+  </div>
+
+  <div class="row" id="dayNav">
+    <button class="btn" onclick="shift(-1)">◀</button>
+    <input type="date" id="dayPick" onchange="setDay(this.value)">
+    <span id="dayLabel" style="font-weight:600"></span>
+    <button class="btn" onclick="shift(1)">▶</button>
+    <button class="btn pri" onclick="setDay(todayKey())">Hôm nay</button>
+    <select id="teamSel" class="adm" onchange="viewTeam=this.value;render()"></select>
+  </div>
+
+  <!-- Điểm danh -->
+  <div id="vday">
+    <div class="row">
+      <button class="btn pri" style="flex:1" onclick="markDone()">💾 Lưu – chấm xong</button>
+      <button class="btn" onclick="allWork()">✓ Chưa chấm → Làm cả ngày</button>
+    </div>
+    <div class="row">
+      <button class="btn" style="flex:1" onclick="exportXlsx('day')">⬇ Excel ngày</button>
+      <button class="btn" style="flex:1" onclick="exportXlsx('month')">⬇ Excel tháng</button>
+    </div>
+    <div class="row adm">
+      <button class="btn sm adm" id="editBtn" onclick="toggleEdit()">✎ Sửa danh sách</button>
+      <button class="btn sm adm" id="lockBtn" onclick="lockDay(viewTeam,!locked(curDay,viewTeam))"></button>
+      <button class="btn sm adm" style="flex:1" onclick="exportXlsx('day',true)">⬇ Excel ngày – cả công ty</button>
+      <button class="btn sm adm" style="flex:1" onclick="exportXlsx('month',true)">⬇ Excel tháng – cả công ty</button>
+    </div>
+    <p id="doneMsg" class="hint"></p>
+    <div id="summary" class="stat"></div>
+    <p class="hint">Bấm ô để tick, bấm lại để bỏ. Đã tick Làm thì Phép / K.phép bị khóa và ngược lại. Hỗ trợ: gõ tên vào dòng trống cuối bảng.</p>
+    <div class="wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="stt" rowspan="2">STT</th><th class="nm" rowspan="2">Họ và tên</th>
+            <th colspan="3">Sáng</th><th colspan="3">Chiều + tối</th>
+            <th rowspan="2">Đi trễ</th><th rowspan="2">Ra ngoài</th><th rowspan="2">Xuống ca</th><th rowspan="2">Tăng ca</th>
+            <th rowspan="2">Giờ thực</th><th rowspan="2">Ghi chú</th>
+          </tr>
+          <tr><th>Làm</th><th>Phép</th><th>K.phép</th><th>Làm</th><th>Phép</th><th>K.phép</th></tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Tổng hợp, biểu đồ, quản trị (chỉ quản trị) -->
+  <div id="vsum" class="hidden"><div id="sumBody"></div></div>
+  <div id="vchart" class="hidden"><div id="chartBody"></div></div>
+  <div id="vadm" class="hidden"><div id="admBody"></div></div>
+</div>
+
+<script>
+/* ===== 1. CẤU HÌNH FIREBASE – điền thông tin từ Firebase Console vào đây ===== */
+const firebaseConfig = {
+  apiKey: "", authDomain: "", databaseURL: "",
+  projectId: "", storageBucket: "", messagingSenderId: "", appId: ""
+};
+
+/* ===== 2. DANH SÁCH TỔ, NHÓM, NGƯỜI (t: CT = Chính thức, TV = Thời vụ) ===== */
+const TEAMS = [
+  {id:'dg', name:'Đóng gói', groups:[
+    {n:'Đóng gói', t:'CT', w:'Lê Thành Long,Võ Minh Phát,Võ Thị Anh Thư,Hà Thị Phước Hiền,Hà Thị Phước Lành,Nguyễn Trọng Phúc,Phan Thị Thuỳ Dương,Văn Trung Nhân,Lê Thị Bảo Trân,Trần Thị Bích,Trần Kim Thoa,Ngô Thảo Lam,Bùi Ngọc Trúc Huỳnh,Nguyễn Ngọc Hạnh,Trần Thị Mỹ Hạnh'},
+    {n:'Đóng gói TV', t:'TV', w:'Trần Thị Cẩm Tuyên,Trương Lý Dũng'}
+  ]},
+  {id:'ct', name:'Cắt tỉa', groups:[
+    {n:'Cắt tỉa', t:'CT', w:'Trần Thị Nhí,Nguyễn Thị Hồng Lam,Lê Thị Phương,Mai Thị Thắm,Lê Thị Thanh Dung,Lê Thị Kim Chi,Nguyễn Thị Thuỳ Dung,Trần Thị Trúc Duyên,Nguyễn Thị Mộng Quyền,Hồ Thị Ngọc Ngân,Lê Ngọc Anh,Hồ Thị Bích Tuyền,Huỳnh Ngọc Mẫn,Huỳnh Thị Thu Hiền,Nguyễn Thị Ngọc Yến,Lò Thị Thuỳ Duyên,Lê Thị Mỹ Khuyên,Dương Ngọc Tuyết Mai,Nguyễn Thị Cẩm Thương,Nguyễn Văn Tính,Huỳnh Thị Kim Liên,Trần Kim Xoa,Huỳnh Thị Trúc Ngân,Trần Thị Cẩm Tú,Hồ Thị Phi'},
+    {n:'Cắt tỉa TV', t:'TV', w:'Ngô Thị Thúy Ngân,Ngô Thị Tường Vy,Nguyễn Thị Mộng Thu,Trần Thị Kiều Diễm,Trương Ngọc Hân'}
+  ]},
+  {id:'npl', name:'Kho NPL', groups:[
+    {n:'Kho NPL', t:'CT', w:'Nguyễn Thanh Bình,Nguyễn Kim Hải Lý,Trần Thị Diễm,Hồ Thị Chi,Lê Quang Vinh,Trương Văn Sang'},
+    {n:'Kho NPL TV', t:'TV', w:''}
+  ]},
+  {id:'han', name:'Hàn - Sắt', groups:[
+    {n:'Hàn - Sắt', t:'CT', w:'Lê Thành Lộc,Nguyễn Trường Kha,Nguyễn Phúc Hậu,Nguyễn Thanh Trúc Phương,Bạch Thị Ngọc Điệp,Phạm Minh Duy,Trần Thị Cẩm Tiên,Nguyễn Hữu Anh,Nguyễn Văn Lập'},
+    {n:'Hàn TV', t:'TV', w:''}
+  ]},
+  {id:'son', name:'Sơn', groups:[
+    {n:'Sơn', t:'CT', w:'Võ Hoàng Tha,Lê Văn Láng,Nguyễn Thị Bạch Huệ,Trường Văn Beo,Nguyễn Hữu Phúc,Nguyễn Tuấn Kiệt,Lê Thanh Phú,Nguyễn Hoài Nam,Lê Văn Đức,Nguyễn Thị Thu Hương,Võ Huỳnh Ninh,Trần Mạnh Quỳnh'},
+    {n:'Sơn TV', t:'TV', w:''}
+  ]},
+  {id:'lac', name:'Lacquer + Lắp ráp', groups:[
+    {n:'Lacquer', t:'CT', w:'Trần Thị Bảo Trâm,Ngô Thị Xuân Trang,Nguyễn Thị Bích Trâm,Nguyễn Lê Nhật Trường'},
+    {n:'Lắp ráp', t:'CT', w:'Cao Nguyễn Phúc Hậu,Lê Nguyễn Thành Đạt,Âu Anh Khoa,Phạm Văn Lâm,Huỳnh Thị Khánh An,Võ Văn Mum'},
+    {n:'Lắp ráp TV', t:'TV', w:''}
+  ]},
+  {id:'kks', name:'Kho khung sắt', groups:[
+    {n:'Kho khung sắt', t:'CT', w:'Nguyễn Thị Hồng Vân,Nguyễn Thị Hồng Nhi,Nguyễn Minh Quân,Võ Thanh Huy,Trần Thị Ánh Trâm'},
+    {n:'Kho khung sắt TV', t:'TV', w:''}
+  ]},
+  {id:'bt', name:'Bảo trì', groups:[
+    {n:'Bảo trì', t:'CT', w:'Phan Thành Luân'},
+    {n:'Bảo trì TV', t:'TV', w:''}
+  ]},
+  {id:'mau', name:'Mẫu', groups:[
+    {n:'Mẫu', t:'CT', w:'Trần Thị Thu Thảo,Trần Thị Hoặc'},
+    {n:'Mẫu TV', t:'TV', w:''}
+  ]},
+  {id:'bv', name:'Bảo vệ', groups:[
+    {n:'Bảo vệ', t:'CT', w:'Nguyễn Văn Em,Đỗ Văn Thương,Hồ Thanh Nhân,Lê Thanh Bình'}
+  ]},
+  {id:'tv', name:'Tạp vụ', groups:[
+    {n:'Tạp vụ', t:'CT', w:'Trương Thị Diệu Hạnh'},
+    {n:'Tạp vụ TV', t:'TV', w:''}
+  ]},
+  {id:'kh', name:'Kiểm hàng', groups:[
+    {n:'Kiểm hàng', t:'CT', w:'Huỳnh Tiến Đạt,Âu Ngọc Trâm,Trương Thị Ngọc Hân,Nguyễn Võ Thanh Như,Bùi Huỳnh Thơ,Nguyễn Thị Thảo Nguyên,Nguyễn Bùi Như Ý,Châu Thị Huyền Trang,Nguyễn Thị Minh Hằng'},
+    {n:'Kiểm hàng TV', t:'TV', w:''}
+  ]},
+  {id:'qc', name:'QC', groups:[
+    {n:'QC', t:'CT', w:'Lê Thị Tuyết Mai'},
+    {n:'QC TV', t:'TV', w:''}
+  ]}
+];
+
+const LOCK = {sL:['sP','sK'], sP:['sL'], sK:['sL'], cL:['cP','cK'], cP:['cL'], cK:['cL']};
+const FIELDS = ['sL','sP','sK','cL','cP','cK','tre','ra','xc','tc'];
+const CHECK = ['sL','sP','sK','cL','cP','cK'];
+const DEF = {pins:{}, admins:[], att:{}, done:{}, locks:{}, extra:{}, removed:{}, log:[]};
+
+/* ===== 3. TRẠNG THÁI ===== */
+let DB = loadLocal();
+let S = JSON.parse(localStorage.getItem('adt_s') || 'null');   // {role:'team'|'admin', id, name}
+let tab = 'day', viewTeam = TEAMS[0].id, editMode = false, period = 7;
+let fbDb = null, syncState = 'local', curDay = todayKey();
+
+function loadLocal(){
+  try{ return Object.assign({}, DEF, JSON.parse(localStorage.getItem('adt_v2') || '{}')); }
+  catch(e){ return Object.assign({}, DEF); }
+}
+function save(){
+  localStorage.setItem('adt_v2', JSON.stringify(DB));
+  if(fbDb) fbDb.ref('cc').set(DB).catch(()=>setSync('err'));
+  render();
+}
+function log(act){
+  DB.log = [{t:new Date().toLocaleString('vi-VN'), who:S?S.name:'', act}, ...DB.log].slice(0,300);
+}
+function setSync(st){
+  syncState = st;
+  const m = {ok:'🟢 Đã đồng bộ', off:'🔴 Mất kết nối – sẽ gửi khi có mạng', err:'🔴 Lỗi gửi dữ liệu', local:'🔴 Chưa kết nối Firebase – đang chạy offline'};
+  const el = document.getElementById('sync'); if(el) el.textContent = m[st];
+}
+function initFirebase(){
+  if(!firebaseConfig.databaseURL || typeof firebase === 'undefined'){ setSync('local'); return; }
+  firebase.initializeApp(firebaseConfig);
+  fbDb = firebase.database();
+  fbDb.ref('cc').on('value', s=>{
+    if(s.val()){
+      DB = Object.assign({}, DEF, s.val());
+      localStorage.setItem('adt_v2', JSON.stringify(DB));
+      render();
+    } else {
+      fbDb.ref('cc').set(DB);   // lần đầu: đẩy dữ liệu cục bộ lên
+    }
+  }, ()=>setSync('err'));
+  fbDb.ref('.info/connected').on('value', s=>setSync(s.val() ? 'ok' : 'off'));
+}
+
+/* ===== 4. TIỆN ÍCH ===== */
+const pad = n => String(n).padStart(2,'0');
+function todayKey(){ const d=new Date(); return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate()); }
+function shiftKey(k,n){ const [y,m,d]=k.split('-').map(Number); const x=new Date(y,m-1,d+n); return x.getFullYear()+'-'+pad(x.getMonth()+1)+'-'+pad(x.getDate()); }
+function monthDays(k){ const [y,m]=k.split('-').map(Number); const n=new Date(y,m,0).getDate(); return Array.from({length:n},(_,i)=>y+'-'+pad(m)+'-'+pad(i+1)); }
+function span(end,n){ return Array.from({length:n},(_,i)=>shiftKey(end,i-n+1)); }
+function fmtDate(k){ const [y,m,d]=k.split('-'); return d+'/'+m+'/'+y; }
+const fmtNum = x => String(x).replace('.',',');
+async function sha(s){
+  const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+const team = id => TEAMS.find(t=>t.id===id);
+const getRec = (d,c) => ((DB.att[d]||{})[c]) || {};
+function rec(d,c){ DB.att[d]=DB.att[d]||{}; DB.att[d][c]=DB.att[d][c]||{}; return DB.att[d][c]; }
+const locked = (d,t) => !!((DB.locks[d]||{})[t]);
+const canEdit = (d,t) => !!S && (S.role==='admin' || !locked(d,t));
+
+/* Người của tổ: danh sách gốc + người thêm − người đã xóa. Mã người = tổ|nhóm|tên */
+function people(tid){
+  const out=[], rm=DB.removed[tid]||[];
+  const add=(g,item)=>{
+    const [nm,note=''] = item.split('|').map(s=>s.trim());
+    if(!nm) return;
+    const code = tid+'|'+g.n+'|'+nm;
+    if(rm.includes(code)) return;
+    out.push({code, name:nm, note, g});
+  };
+  team(tid).groups.forEach(g=>{
+    g.w.split(',').map(s=>s.trim()).filter(Boolean).forEach(i=>add(g,i));
+    (DB.extra[tid]||[]).filter(e=>e.g===g.n).forEach(e=>add(g,e.n));
+  });
+  return out;
+}
+/* Số dòng Hỗ trợ: luôn có ít nhất 3 dòng và một dòng trống sau dòng cuối có tên */
+function supRows(d,tid){
+  let last=-1;
+  for(let i=0;i<40;i++) if(getRec(d,tid+'|HT|'+i).nm) last=i;
+  return Math.min(40, Math.max(3, last+2));
+}
+function cntOf(days,code){
+  const o={}; FIELDS.forEach(f=>o[f]=days.reduce((a,d)=>a+(getRec(d,code)[f]?1:0),0)); return o;
+}
+function supAgg(days,tid){
+  const m={};
+  days.forEach(d=>{
+    for(let i=0;i<40;i++){
+      const r=getRec(d,tid+'|HT|'+i); if(!r.nm) continue;
+      const o=m[r.nm]=m[r.nm]||{name:r.nm,c:{}};
+      FIELDS.forEach(f=>{ if(r[f]) o.c[f]=(o.c[f]||0)+1; });
+    }
+  });
+  return Object.values(m);
+}
+/* Tỷ lệ làm: tính trên buổi đã chấm (Làm / (Làm+Phép+K.phép)); ngày chưa chấm không tính là nghỉ */
+function agg(tid,days){
+  let L=0,P=0,K=0;
+  const ids = tid ? [tid] : TEAMS.map(t=>t.id);
+  ids.forEach(id=>people(id).forEach(p=>days.forEach(d=>{
+    const r=getRec(d,p.code);
+    L+=(r.sL?1:0)+(r.cL?1:0); P+=(r.sP?1:0)+(r.cP?1:0); K+=(r.sK?1:0)+(r.cK?1:0);
+  })));
+  const tot=L+P+K;
+  return {L,P,K,tot,rate: tot ? L/tot*100 : null};
+}
+const dlt = (a,b) => (a==null||b==null) ? null : a-b;
+const arrow = v => v==null ? '–' : v>0 ? '▲ +'+fmtNum(v.toFixed(1)) : v<0 ? '▼ '+fmtNum(Math.abs(v).toFixed(1)) : '= 0';
+const pct = r => r==null ? '–' : fmtNum(r.toFixed(1))+'%';
+const lab = r => r==null ? 'Chưa chấm' : r>=95 ? 'Tốt' : r>=90 ? 'Khá' : 'Cần chú ý';
+function periods(){
+  if(period==='month'){
+    const [y,m]=curDay.split('-').map(Number); const p=new Date(y,m-2,1);
+    return {cur:monthDays(curDay), prev:monthDays(p.getFullYear()+'-'+pad(p.getMonth()+1)+'-01')};
+  }
+  return {cur:span(curDay,period), prev:span(shiftKey(curDay,-period),period)};
+}
+
+/* ===== 5. ĐĂNG NHẬP ===== */
+function showLogin(){
+  document.getElementById('login').classList.remove('hidden');
+  document.getElementById('app').classList.add('hidden');
+  const t = TEAMS.map(x=>`<option value="t:${x.id}">Tổ ${x.name}${DB.pins[x.id]?'':' (chưa có PIN)'}</option>`).join('');
+  const a = DB.admins.length
+    ? DB.admins.map((x,i)=>`<option value="a:${i}">Quản trị: ${x.name}</option>`).join('')
+    : '<option value="a:new">Quản trị – tạo tài khoản đầu tiên</option>';
+  document.getElementById('loginTeam').innerHTML = t + a;
+}
+async function doLogin(){
+  const v=document.getElementById('loginTeam').value;
+  const pin=document.getElementById('loginPin').value.trim();
+  const msg=document.getElementById('loginMsg');
+  if(!pin){ msg.textContent='Nhập mã PIN.'; return; }
+  const h=await sha(pin);
+  const [k,id]=v.split(':');
+  if(k==='t'){
+    if(!DB.pins[id]) DB.pins[id]=h;
+    else if(DB.pins[id]!==h){ msg.textContent='Mã PIN không đúng.'; return; }
+    S={role:'team', id, name:'Tổ '+team(id).name};
+  } else if(id==='new'){
+    const nm=prompt('Tên quản trị đầu tiên:'); if(!nm||!nm.trim()) return;
+    DB.admins.push({name:nm.trim(), h}); S={role:'admin', id:'', name:nm.trim()};
+  } else {
+    const a=DB.admins[+id];
+    if(a.h!==h){ msg.textContent='Mã PIN không đúng.'; return; }
+    S={role:'admin', id:'', name:a.name};
+  }
+  localStorage.setItem('adt_s', JSON.stringify(S));
+  document.getElementById('loginPin').value=''; msg.textContent='';
+  log('Đăng nhập'); save(); openApp();
+}
+function logout(){
+  S=null; localStorage.removeItem('adt_s');
+  document.body.classList.remove('isAdmin'); showLogin();
+}
+function openApp(){
+  document.getElementById('login').classList.add('hidden');
+  document.getElementById('app').classList.remove('hidden');
+  document.body.classList.toggle('isAdmin', S.role==='admin');
+  if(S.role==='team') viewTeam=S.id;
+  tab='day';
+  document.getElementById('who').textContent = S.role==='admin' ? '🛡️ Quản trị: '+S.name : '👤 '+S.name;
+  render();
+}
+
+/* ===== 6. ĐIỀU HƯỚNG VÀ HIỂN THỊ ===== */
+function go(t){ if(t!=='day' && S.role!=='admin') return; tab=t; render(); }
+function setDay(k){ if(!k) return; curDay=k; render(); }
+function shift(n){ setDay(shiftKey(curDay,n)); }
+function setPeriod(v){ period = v==='month' ? 'month' : +v; render(); }
+
+function render(){
+  if(!S) return;
+  document.body.classList.toggle('isAdmin', S.role==='admin');
+  ['day','sum','chart','adm'].forEach(t=>document.getElementById('v'+t).classList.toggle('hidden', t!==tab));
+  document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('pri', b.dataset.t===tab));
+  document.getElementById('dayNav').classList.toggle('hidden', tab==='adm');
+  document.getElementById('dayPick').value = curDay;
+  document.getElementById('dayLabel').textContent = fmtDate(curDay);
+  document.getElementById('teamSel').innerHTML = TEAMS.map(t=>`<option value="${t.id}"${t.id===viewTeam?' selected':''}>${t.name}</option>`).join('');
+  const msgs=[];
+  if(S.role==='admin' && !DB.admins.length) msgs.push('⚠️ Chưa đặt mã quản trị.');
+  if(S.role==='team' && !DB.pins[S.id]) msgs.push('⚠️ Tổ này chưa đặt mã PIN.');
+  const w=document.getElementById('warn'); w.textContent=msgs.join(' '); w.classList.toggle('hidden', !msgs.length);
+  if(tab==='day') renderDay();
+  else if(tab==='sum') renderSum();
+  else if(tab==='chart') renderChart();
+  else renderAdm();
+}
+
+/* ===== 7. ĐIỂM DANH ===== */
+function renderDay(){
+  const tid=viewTeam, lk=locked(curDay,tid), ed=canEdit(curDay,tid);
+  const dA = ed ? '' : ' disabled';
+  document.getElementById('editBtn').textContent = editMode ? '✔ Xong sửa danh sách' : '✎ Sửa danh sách';
+  document.getElementById('lockBtn').textContent = lk ? '🔓 Mở khóa công ngày này' : '🔒 Khóa công ngày này';
+  document.getElementById('doneMsg').textContent =
+    (lk ? '🔒 Ngày này đã khóa, tổ không sửa được. ' : '') +
+    (DB.done[curDay+'|'+tid] ? '✅ Đã bấm Lưu – chấm xong ngày '+fmtDate(curDay) : 'Chưa bấm Lưu – chấm xong');
+
+  const dis = (f,r) => (LOCK[f]||[]).some(g=>r[g]) && !r[f];
+  const cell = (c,f,r) => `<td><div class="cell ${r[f]?'on':''} ${dis(f,r)?'dis':''}" onclick="toggle('${c}','${f}')">${r[f]?'✓':''}</div></td>`;
+  const isAdm = S.role==='admin';
+  const tot = Array(FIELDS.length).fill(0);
+  const cnt = {n:0, ct:0, tv:0, L:0, P:0, K:0, none:0, sup:0};
+  let html='', n=0;
+  const ps = people(tid);
+
+  team(tid).groups.forEach(g=>{
+    html += `<tr class="grp"><td colspan="14">${g.n} – ${g.t==='TV'?'Thời vụ':'Chính thức'} ${ed?`<button class="btn sm" onclick="addPerson('${g.n}')">＋ Thêm người</button>`:''}</td></tr>`;
+    ps.filter(p=>p.g.n===g.n).forEach(p=>{
+      const r=getRec(curDay,p.code); n++;
+      FIELDS.forEach((f,i)=>{ if(r[f]) tot[i]++; });
+      if(r.sL||r.cL) cnt.L++; if(r.sP||r.cP) cnt.P++; if(r.sK||r.cK) cnt.K++;
+      if(!CHECK.some(f=>r[f])) cnt.none++;
+      if(g.t==='CT') cnt.ct++; else cnt.tv++;
+      const edit = editMode && isAdm
+        ? ` <button class="btn sm" onclick="renPerson('${p.code}','${p.name}')">✎</button><button class="btn sm" onclick="delPerson('${p.code}')">✕</button>` : '';
+      html += `<tr><td class="stt">${n}</td>
+        <td class="nm">${p.name}${p.note?` <span class="note">(${p.note})</span>`:''}${edit}</td>
+        ${FIELDS.map(f=>cell(p.code,f,r)).join('')}
+        <td><input class="txt" value="${r.gt||''}" placeholder="17:00-19:00" onchange="setVal('${p.code}','gt',this.value)"${dA}></td>
+        <td><input class="txt" value="${r.gc||''}" onchange="setVal('${p.code}','gc',this.value)"${dA}></td></tr>`;
+    });
+  });
+  n=0;
+  html += `<tr class="tot"><td></td><td class="nm">Tổng tổ (không gồm hỗ trợ)</td>${tot.map(v=>`<td>${v}</td>`).join('')}<td></td><td></td></tr>`;
+
+  html += `<tr class="grp"><td colspan="14">🤝 Hỗ trợ – người tổ khác sang giúp (không tính vào tổng nhân sự)</td></tr>`;
+  for(let i=0;i<supRows(curDay,tid);i++){
+    const c=tid+'|HT|'+i, r=getRec(curDay,c);
+    if(r.nm) cnt.sup++;
+    html += `<tr><td class="stt">${i+1}</td>
+      <td class="nm"><input class="txt wide" value="${r.nm||''}" placeholder="Nhập tên người hỗ trợ…" onchange="setVal('${c}','nm',this.value)"${dA}></td>
+      ${FIELDS.map(f=>cell(c,f,r)).join('')}
+      <td><input class="txt" value="${r.gt||''}" placeholder="17:00-19:00" onchange="setVal('${c}','gt',this.value)"${dA}></td>
+      <td><input class="txt" value="${r.gc||''}" placeholder="Từ tổ nào…" onchange="setVal('${c}','gc',this.value)"${dA}></td></tr>`;
+  }
+  document.getElementById('tbody').innerHTML = html;
+  document.getElementById('summary').innerHTML =
+    `<b>Tổng: ${ps.length} người</b>(Chính thức ${cnt.ct} · Thời vụ ${cnt.tv})
+     <span class="c-ok"><b>✓ Làm</b>${cnt.L}</span>
+     <span class="c-p"><b>Phép</b>${cnt.P}</span>
+     <span class="c-kp"><b>K.phép</b>${cnt.K}</span>
+     <span><b>Chưa chấm</b>${cnt.none}</span>
+     <span><b>🤝 Hỗ trợ</b>${cnt.sup}</span>`;
+}
+
+/* Thao tác chấm công */
+function toggle(c,f){
+  if(!canEdit(curDay,viewTeam)) return;
+  const r=rec(curDay,c);
+  if(r[f]) r[f]=false;
+  else { if((LOCK[f]||[]).some(g=>r[g])) return; r[f]=true; }
+  save();
+}
+function setVal(c,f,v){
+  if(!canEdit(curDay,viewTeam)) return;
+  rec(curDay,c)[f]=v.trim(); save();
+}
+function allWork(){
+  if(!canEdit(curDay,viewTeam)) return;
+  people(viewTeam).forEach(p=>{ const r=rec(curDay,p.code); if(!CHECK.some(f=>r[f])){ r.sL=true; r.cL=true; } });
+  log('Làm cả ngày'); save();
+}
+function markDone(){
+  DB.done[curDay+'|'+viewTeam]=true;
+  log('Lưu – chấm xong '+fmtDate(curDay)+' ('+team(viewTeam).name+')'); save();
+}
+function addPerson(g){
+  const n=prompt('Họ và tên người thêm vào nhóm "'+g+'":');
+  if(!n||!n.trim()) return;
+  DB.extra[viewTeam]=DB.extra[viewTeam]||[];
+  DB.extra[viewTeam].push({g, n:n.trim()});
+  log('Thêm người: '+n.trim()+' ('+g+')'); save();
+}
+
+/* Quản trị: sửa danh sách và khóa công */
+function toggleEdit(){ editMode=!editMode; render(); }
+function delPerson(c){
+  if(S.role!=='admin') return;
+  if(!confirm('Xóa người này khỏi danh sách? Dữ liệu chấm công cũ vẫn được giữ.')) return;
+  DB.removed[viewTeam]=(DB.removed[viewTeam]||[]).concat(c);
+  log('Xóa người: '+c.split('|')[2]); save();
+}
+function renPerson(c,old){
+  if(S.role!=='admin') return;
+  const nm=prompt('Tên mới:', old);
+  if(!nm||!nm.trim()||nm.trim()===old) return;
+  const t=viewTeam, p=people(t).find(x=>x.code===c);
+  DB.removed[t]=(DB.removed[t]||[]).concat(c);
+  DB.extra[t]=(DB.extra[t]||[]).concat({g:p.g.n, n:nm.trim()});
+  log('Đổi tên: '+old+' → '+nm.trim()+'. Lưu ý: công cũ của tên cũ không hiện trên tên mới.'); save();
+}
+function lockDay(t,on){
+  if(S.role!=='admin') return;
+  DB.locks[curDay]=DB.locks[curDay]||{}; DB.locks[curDay][t]=on;
+  log((on?'Khóa':'Mở khóa')+' công '+team(t).name+' ngày '+fmtDate(curDay)); save();
+}
+function lockAll(on){
+  DB.locks[curDay]=DB.locks[curDay]||{};
+  TEAMS.forEach(t=>DB.locks[curDay][t.id]=on);
+  log((on?'Khóa':'Mở khóa')+' công tất cả tổ ngày '+fmtDate(curDay)); save();
+}
+
+/* ===== 8. TỔNG HỢP (quản trị) ===== */
+function renderSum(){
+  const d=curDay; let rows='';
+  const T={n:0,L:0,P:0,K:0,tc:0,sup:0,none:0,done:0};
+  TEAMS.forEach(t=>{
+    const ps=people(t.id), a=agg(t.id,[d]);
+    let tc=0, none=0, sup=0;
+    ps.forEach(p=>{ const r=getRec(d,p.code); if(r.tc) tc++; if(!CHECK.some(f=>r[f])) none++; });
+    for(let i=0;i<40;i++) if(getRec(d,t.id+'|HT|'+i).nm) sup++;
+    const dn=!!DB.done[d+'|'+t.id];
+    T.n+=ps.length; T.L+=a.L; T.P+=a.P; T.K+=a.K; T.tc+=tc; T.sup+=sup; T.none+=none; T.done+=dn?1:0;
+    rows += `<tr><td class="nm">${t.name}</td><td>${ps.length}</td><td>${a.L}</td><td>${fmtNum((a.L*0.5).toFixed(1))}</td>
+      <td>${a.P}</td><td>${a.K}</td><td>${tc}</td><td>${sup}</td><td>${none}</td><td>${dn?'✅':'⏳'}</td></tr>`;
+  });
+  document.getElementById('sumBody').innerHTML =
+    `<p class="hint">Ngày ${fmtDate(d)}. Quy ước: 1 buổi = 0,5 công; tỷ lệ tính trên buổi đã chấm; đội khoán và người hỗ trợ không tính vào nhân sự.</p>
+    <div class="wrap"><table>
+      <thead><tr><th class="nm">Tổ</th><th>Nhân sự</th><th>Làm (buổi)</th><th>Làm (công)</th><th>Phép</th><th>K.phép</th><th>Tăng ca</th><th>Hỗ trợ đến</th><th>Chưa chấm</th><th>Đã lưu</th></tr></thead>
+      <tbody>${rows}
+        <tr class="tot"><td class="nm">Cả công ty</td><td>${T.n}</td><td>${T.L}</td><td>${fmtNum((T.L*0.5).toFixed(1))}</td>
+        <td>${T.P}</td><td>${T.K}</td><td>${T.tc}</td><td>${T.sup}</td><td>${T.none}</td><td>${T.done}/${TEAMS.length}</td></tr>
+      </tbody></table></div>`;
+}
+
+/* ===== 9. BIỂU ĐỒ & XẾP HẠNG (quản trị) ===== */
+function spark(tid,days){
+  const pts=[];
+  days.forEach((d,i)=>{ const r=agg(tid,[d]).rate; if(r!=null) pts.push([i*(78/Math.max(1,days.length-1))+1, 19-(r/100)*18]); });
+  if(pts.length<2) return '–';
+  return `<svg width="80" height="20"><polyline fill="none" stroke="var(--pri)" stroke-width="2" points="${pts.map(p=>p.join(',')).join(' ')}"/></svg>`;
+}
+function barSvg(days){
+  const rows=days.map(d=>{
+    let L=0,P=0,K=0,S2=0;
+    TEAMS.forEach(t=>people(t.id).forEach(p=>{
+      const r=getRec(d,p.code);
+      L+=(r.sL?1:0)+(r.cL?1:0); P+=(r.sP?1:0)+(r.cP?1:0); K+=(r.sK?1:0)+(r.cK?1:0); S2+=2;
+    }));
+    return {L,P,K,U:S2-L-P-K};
+  });
+  const W=680, H=180, max=Math.max(1,...rows.map(r=>r.L+r.P+r.K+r.U));
+  const bw=(W-30)/days.length;
+  let s=`<svg viewBox="0 0 ${W} ${H+20}" width="100%">`;
+  rows.forEach((r,i)=>{
+    let y=H;
+    [['L','var(--pri)'],['P','#b54708'],['K','var(--red)'],['U','#9aa6a0']].forEach(([k,c])=>{
+      const h=r[k]/max*H; y-=h;
+      s+=`<rect x="${15+i*bw}" y="${y}" width="${bw*0.7}" height="${h}" fill="${c}"/>`;
+    });
+    if(i%Math.ceil(days.length/8)===0) s+=`<text x="${15+i*bw}" y="${H+14}" font-size="10" fill="var(--mut)">${days[i].slice(8)}</text>`;
+  });
+  return s+'</svg>';
+}
+function heat(days){
+  const c = r => r==null ? '' : r>=95 ? 'hg' : r>=90 ? 'hy' : 'hr';
+  const row=(name,tid,bold)=>`<tr><td class="nm">${bold?'<b>'+name+'</b>':name}</td>${days.map(d=>{
+    const r=agg(tid,[d]).rate; return `<td class="${c(r)}">${r==null?'–':fmtNum(Math.round(r))}</td>`; }).join('')}</tr>`;
+  return `<div class="wrap"><table><thead><tr><th class="nm">Tổ</th>${days.map(d=>`<th>${d.slice(8)}</th>`).join('')}</tr></thead>
+    <tbody>${TEAMS.map(t=>row(t.name,t.id,false)).join('')}${row('Cả công ty',null,true)}</tbody></table></div>`;
+}
+function renderChart(){
+  const {cur,prev}=periods();
+  const co=agg(null,cur), cp=agg(null,prev);
+  const rk=TEAMS.map(t=>({t, c:agg(t.id,cur), p:agg(t.id,prev)}));
+  const byC=[...rk].sort((a,b)=>(b.c.rate??-1)-(a.c.rate??-1));
+  const byP=[...rk].sort((a,b)=>(b.p.rate??-1)-(a.p.rate??-1));
+  const ch=rk.map(x=>({x, d:dlt(x.c.rate,x.p.rate)})).filter(o=>o.d!=null);
+  const up=[...ch].sort((a,b)=>b.d-a.d)[0], dn=[...ch].sort((a,b)=>a.d-b.d)[0];
+  const kr=rk.filter(x=>x.c.tot).sort((a,b)=>b.c.K/b.c.tot-a.c.K/a.c.tot)[0];
+  const share=(v,t)=> t ? fmtNum((v/t*100).toFixed(1))+'%' : '–';
+  const nTotal=TEAMS.reduce((s,t)=>s+people(t.id).length,0);
+  const pbtn=[[7,'7 ngày'],[14,'14 ngày'],[30,'30 ngày'],['month','Tháng']]
+    .map(([v,l])=>`<button class="btn sm ${period===v?'pri':''}" onclick="setPeriod('${v}')">${l}</button>`).join('');
+  const rankRows=byC.map((x,i)=>{
+    const mv=byP.findIndex(y=>y.t.id===x.t.id)-i;
+    return `<tr><td>${i+1} ${mv>0?'▲'+mv:mv<0?'▼'+(-mv):'–'}</td><td class="nm">${x.t.name}</td>
+      <td>${pct(x.c.rate)}</td><td>${share(x.c.L,x.c.tot)}</td><td>${share(x.c.P,x.c.tot)}</td><td>${share(x.c.K,x.c.tot)}</td>
+      <td>${pct(x.p.rate)}</td><td>${arrow(dlt(x.c.rate,x.p.rate))}</td><td>${spark(x.t.id,cur)}</td><td>${lab(x.c.rate)}</td></tr>`;
+  }).join('');
+  const coRow=`<tr class="tot"><td>–</td><td class="nm">Cả công ty</td><td>${pct(co.rate)}</td>
+    <td>${share(co.L,co.tot)}</td><td>${share(co.P,co.tot)}</td><td>${share(co.K,co.tot)}</td>
+    <td>${pct(cp.rate)}</td><td>${arrow(dlt(co.rate,cp.rate))}</td><td></td><td>${lab(co.rate)}</td></tr>`;
+  document.getElementById('chartBody').innerHTML = `
+    <div class="row">${pbtn}</div>
+    <div class="stat"><b>Tổng nhân sự</b>${nTotal} người</div>
+    <div class="stat"><b>Tỷ lệ làm</b>${pct(co.rate)} · ${arrow(dlt(co.rate,cp.rate))} so với kỳ trước</div>
+    <div class="stat"><b>Phép</b>${share(co.P,co.tot)} · <b>Không phép</b>${share(co.K,co.tot)}</div>
+    <div class="stat"><b>⬆ Tăng mạnh nhất:</b>${up?up.x.t.name+' '+arrow(up.d):'–'}
+      · <b>⬇ Giảm mạnh nhất:</b>${dn?dn.x.t.name+' '+arrow(dn.d):'–'}
+      · <b>Nghỉ không phép cao nhất:</b>${kr?kr.t.name+' ('+share(kr.c.K,kr.c.tot)+')':'–'}</div>
+    <p class="hint">Xếp hạng theo tỷ lệ làm, kỳ đến ngày ${fmtDate(curDay)}.</p>
+    <div class="wrap"><table>
+      <thead><tr><th>Hạng</th><th class="nm">Tổ</th><th>Tỷ lệ làm</th><th>Làm</th><th>Phép</th><th>K.phép</th><th>Kỳ trước</th><th>Biến động</th><th>Xu hướng</th><th>Đánh giá</th></tr></thead>
+      <tbody>${rankRows}${coRow}</tbody></table></div>
+    <p class="hint">Nhân sự theo ngày toàn công ty:</p>
+    <div class="wrap" style="padding:8px">${barSvg(cur)}
+      <div class="hint">■ <span style="color:var(--pri)">Làm</span> ■ <span style="color:#b54708">Phép</span> ■ <span style="color:var(--red)">K.phép</span> ■ <span style="color:#9aa6a0">Chưa chấm</span></div></div>
+    <p class="hint">Tỷ lệ làm (%) theo ngày. Xanh từ 95, vàng 90–95, đỏ dưới 90:</p>
+    ${heat(cur)}`;
+}
+
+/* ===== 10. QUẢN TRỊ ===== */
+function renderAdm(){
+  const pins = TEAMS.map(t=>`<div class="row"><span style="flex:1">${t.name}${DB.pins[t.id]?'':' <span class="c-kp">(chưa có PIN)</span>'}</span>
+    <button class="btn sm" onclick="resetPin('${t.id}')">Đặt lại PIN</button></div>`).join('');
+  const admins = DB.admins.map(a=>`<div class="hint">👤 ${a.name}</div>`).join('') || '<p class="hint c-kp">⚠️ Chưa có quản trị nào.</p>';
+  const logs = DB.log.slice(0,60).map(l=>`<div class="hint">${l.t} · ${l.who} · ${l.act}</div>`).join('') || '<p class="hint">Chưa có nhật ký.</p>';
+  document.getElementById('admBody').innerHTML = `
+    <p class="hint"><b>Quản trị viên</b></p>${admins}
+    <div class="row"><button class="btn sm" onclick="addAdmin()">＋ Thêm quản trị</button></div>
+    <p class="hint"><b>Mã PIN tổ</b></p>${pins}
+    <p class="hint"><b>Khóa công ngày ${fmtDate(curDay)}</b></p>
+    <div class="row"><button class="btn sm" onclick="lockAll(true)">🔒 Khóa tất cả tổ</button><button class="btn sm" onclick="lockAll(false)">🔓 Mở khóa tất cả</button></div>
+    <p class="hint"><b>Sao lưu và khôi phục</b></p>
+    <div class="row">
+      <button class="btn sm" onclick="backup()">⬇ Sao lưu JSON</button>
+      <label class="btn sm">⬆ Nhập từ JSON<input type="file" accept=".json" class="hidden" onchange="importJson(this.files[0])"></label>
+      <button class="btn sm" onclick="resetList()">↺ Khôi phục danh sách mặc định</button>
+    </div>
+    <p class="hint"><b>Nhật ký thao tác (60 gần nhất)</b></p>${logs}`;
+}
+async function addAdmin(){
+  const nm=prompt('Tên quản trị mới:'); if(!nm||!nm.trim()) return;
+  const p=prompt('Mã PIN cho '+nm.trim()+':'); if(!p||!p.trim()) return;
+  DB.admins.push({name:nm.trim(), h:await sha(p.trim())});
+  log('Thêm quản trị: '+nm.trim()); save();
+}
+async function resetPin(t){
+  const p=prompt('Mã PIN mới cho '+team(t).name+':'); if(!p||!p.trim()) return;
+  DB.pins[t]=await sha(p.trim());
+  log('Đặt lại PIN tổ '+team(t).name); save();
+}
+function resetList(){
+  if(!confirm('Khôi phục danh sách mặc định sẽ xóa người đã thêm và phục hồi người đã xóa. Dữ liệu chấm công giữ nguyên. Tiếp tục?')) return;
+  DB.extra={}; DB.removed={};
+  log('Khôi phục danh sách mặc định'); save();
+}
+function backup(){
+  const url=URL.createObjectURL(new Blob([JSON.stringify(DB,null,2)],{type:'application/json'}));
+  const a=document.createElement('a'); a.href=url; a.download='ADT_sao_luu_'+todayKey()+'.json'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function importJson(f){
+  if(!f) return;
+  const rd=new FileReader();
+  rd.onload=()=>{
+    if(!confirm('Nhập sẽ THAY TOÀN BỘ dữ liệu hiện có. Tiếp tục?')) return;
+    try{ DB=Object.assign({}, DEF, JSON.parse(rd.result)); log('Nhập dữ liệu từ JSON'); save(); }
+    catch(e){ alert('File không hợp lệ.'); }
+  };
+  rd.readAsText(f);
+}
+
+/* ===== 11. XUẤT EXCEL (ExcelJS) ===== */
+function addSheet(wb,tid,mode){
+  const days = mode==='day' ? [curDay] : monthDays(curDay);
+  const ws = wb.addWorksheet(team(tid).name.slice(0,31));
+  ws.pageSetup = {orientation:'landscape', paperSize:9, fitToPage:true, fitToWidth:1, fitToHeight:0};
+  ws.mergeCells('A1:N1');
+  ws.getCell('A1').value = 'ĐIỂM DANH TỔ SẢN XUẤT – ADT · '+team(tid).name+' · '+
+    (mode==='day' ? 'Ngày '+fmtDate(curDay) : 'Tháng '+curDay.slice(5,7)+'/'+curDay.slice(0,4));
+  ws.getCell('A1').font = {bold:true, size:13};
+  const hr = ws.addRow(['STT','Họ và tên','Sáng Làm','Sáng Phép','Sáng K.phép','Chiều Làm','Chiều Phép','Chiều K.phép','Đi trễ','Ra ngoài','Xuống ca','Tăng ca','Giờ thực','Ghi chú']);
+  hr.font = {bold:true};
+  hr.alignment = {horizontal:'center', vertical:'middle', wrapText:true};
+  ws.columns = [6,28,10,10,11,10,10,11,9,10,10,10,14,24].map(w=>({width:w}));
+  const first = hr.number+1;
+  const rows = [];
+  const gtOf = c => days.length===1 ? (getRec(days[0],c).gt||'') : (days.filter(d=>getRec(d,c).gt).length || '');
+  const gcOf = c => days.length===1 ? (getRec(days[0],c).gc||'') : '';
+  people(tid).forEach(p=>rows.push({name:p.name+(p.note?' ('+p.note+')':''), c:cntOf(days,p.code), gt:gtOf(p.code), gc:gcOf(p.code)}));
+  if(mode==='day'){
+    for(let i=0;i<supRows(curDay,tid);i++){
+      const c=tid+'|HT|'+i, r=getRec(curDay,c);
+      if(r.nm) rows.push({name:r.nm+' (hỗ trợ)', c:cntOf([curDay],c), gt:r.gt||'', gc:r.gc||''});
+    }
+  } else {
+    supAgg(days,tid).forEach(s=>rows.push({name:s.name+' (hỗ trợ)', c:s.c, gt:'', gc:''}));
+  }
+  for(let k=0;k<3;k++) rows.push({name:'', c:{}, gt:'', gc:''});   // dòng trống cho tổ viết thêm
+  rows.forEach((r,i)=>{
+    const vals = FIELDS.map(f => mode==='day' ? (r.c[f]?'✓':'') : (r.c[f]||0));
+    const row = ws.addRow([r.name?i+1:'', r.name, ...vals, r.gt, r.gc]);
+    row.alignment = {horizontal:'center', vertical:'middle'};
+    row.getCell(2).alignment = {horizontal:'left', vertical:'middle'};
+  });
+  const last = first+rows.length-1;
+  const tr = ws.addRow(['', 'TỔNG CỘNG']);
+  tr.font = {bold:true};
+  for(let c=3;c<=12;c++){
+    const col=String.fromCharCode(64+c), rg=col+first+':'+col+last;
+    tr.getCell(c).value = {formula: mode==='day' ? 'COUNTIF('+rg+',"✓")' : 'SUM('+rg+')'};
+    tr.getCell(c).alignment = {horizontal:'center'};
+  }
+}
+async function exportXlsx(mode, all){
+  if(typeof ExcelJS==='undefined'){ alert('Chưa tải được thư viện Excel. Kiểm tra mạng rồi thử lại.'); return; }
+  const wb = new ExcelJS.Workbook();
+  (all ? TEAMS : [team(viewTeam)]).forEach(t=>addSheet(wb,t.id,mode));
+  const buf = await wb.xlsx.writeBuffer();
+  const url = URL.createObjectURL(new Blob([buf],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (all?'ADT_CongTy_':'ADT_'+viewTeam+'_')+(mode==='day'?curDay:curDay.slice(0,7))+'.xlsx';
+  a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+/* ===== 12. KHỞI ĐỘNG ===== */
+initFirebase();
+if(S && (S.role==='admin' || team(S.id))) openApp();
+else showLogin();
+</script>
+</body>
+</html>
